@@ -67,13 +67,6 @@ public class GameActivity extends Activity {
 		gameView.createNewBrick(10);
 	}
 	
-	public void onEndGame(View view) {
-		Intent intent = new Intent(this, FinalScoreActivity.class);
-		intent.putExtra ( "player1Name", player1Name );
-		intent.putExtra ( "player2Name", player2Name );
-		startActivity(intent);
-	}
-	
 	public void onEndGame(int [] scores) {
 		Intent intent = new Intent(this, FinalScoreActivity.class);
 		intent.putExtra ( "player1Name", player1Name );
