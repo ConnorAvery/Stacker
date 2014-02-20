@@ -5,7 +5,10 @@ import java.util.ArrayList;
 import android.R.string;
 import android.content.Context;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -89,10 +92,13 @@ public class Game {
 	private int Tmass;
 
 	private double massPosition;
+	
+	private Bitmap logo;
 
 	public Game(Context c, GameView view){
 		context = c;
 		gameView = view;
+		logo = BitmapFactory.decodeResource(context.getResources(), R.drawable.stacker_logo);
 	}
 	
 	public void draw(Canvas canvas){
@@ -106,7 +112,18 @@ public class Game {
 		int minDim = wid < hit ? wid : hit;
 		
 		scaleFactor = (float)screenWidth/minDim;
-				
+		
+		Paint paint = new Paint();    
+		paint.setAlpha(60);     
+		
+		canvas.save();
+		canvas.translate(screenWidth/2, screenHeight/2);
+		//draw text saying whose turn it is
+		canvas.scale(screenWidth/logo.getWidth(), screenWidth/logo.getWidth());
+		canvas.translate(-logo.getWidth() / 2, -logo.getHeight() / 2);
+		canvas.drawBitmap(logo, 0, 0, paint);
+		canvas.restore();
+		
 		for(Brick brick : bricks){
 			brick.draw(canvas, bricks.indexOf(brick), scaleFactor, yOffset);
 		}

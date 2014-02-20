@@ -21,5 +21,6 @@
     <string name="score2">4</string>
     <string name="EndGame">End Game</string>
     <string name="EndTurn">End Turn</string>
+    <string name="StackerLogo">Game Logo</string>
 
 </resources>
