@@ -20,7 +20,13 @@ public class Game {
 	
 	private final static String WEIGHTS = "Game.weights";
 	
-	private final static int scoreToWin = 5;
+	private final static String PLAYER1MOVEFIRST = "Game.player1MoveFirst";
+    private final static String PLAYER1MOVE = "Game.player1Move";
+    
+    private final static String PLAYER1SCORE = "Game.player1Score";
+    private final static String PLAYER2SCORE = "Game.player2Score";
+	
+	private final static int scoreToWin = 2;
 	
 	
 	/**
@@ -132,7 +138,7 @@ public class Game {
                 return true;
             }
         case MotionEvent.ACTION_MOVE:
-        	if(dragging != null)
+        	if(dragging != null && !brickIsSet)
         	{
         		dragging.move(relX-lastRelX);
         		Log.i("dragging", "top brick is being dragged");
@@ -182,6 +188,10 @@ public class Game {
 		}
 		bundle.putFloatArray(XLOCATIONS, xLocations);
 		bundle.putIntArray(WEIGHTS, weights);
+		bundle.putBoolean(PLAYER1MOVEFIRST, player1MoveFirst);
+		bundle.putBoolean(PLAYER1MOVE, player1Move);
+		bundle.putInt(PLAYER1SCORE, player1Score);
+		bundle.putInt(PLAYER2SCORE, player2Score);
 	}
 	
 	/**
@@ -190,11 +200,18 @@ public class Game {
 	 */
 	public void loadInstanceState(Bundle bundle) {
 		float [] xLocations = bundle.getFloatArray(XLOCATIONS);
+		int [] weights = bundle.getIntArray(WEIGHTS);
 		Log.i("load", "length: "+XLOCATIONS.length());
 		for(int i=0; i<xLocations.length; i++){
 			bricks.add(new Brick(context, (i%2==0), 0));
 			bricks.get(i).setX(xLocations[i]);
+			bricks.get(i).setWeight(weights[i]);
 		}
+		player1Score = bundle.getInt(PLAYER1SCORE);
+		player2Score = bundle.getInt(PLAYER2SCORE);
+		player1Move = bundle.getBoolean(PLAYER1MOVE);
+		player1MoveFirst = bundle.getBoolean(PLAYER1MOVEFIRST);
+		
 	}
 	
 	private boolean onTouched(float x, float y){
@@ -206,15 +223,22 @@ public class Game {
 	        	dragging = topBrick;
 	        	Log.i("dragging", "dragging set to top brick");
 	            lastRelX = x;
+	            lastRelY = y;
 	            return true;
 	        }
 		}
 		lastRelY = y;
+		lastRelX = x;
 		return true;
 	}
 	public void createNewBrick(int weight){
 		if(brickIsSet){
-			bricks.add(new Brick(context, (bricks.size()%2==0), weight));
+			if(player1MoveFirst){
+				bricks.add(new Brick(context, ((bricks.size())%2==1), weight));
+			}
+			else{
+				bricks.add(new Brick(context, ((bricks.size())%2==0), weight));
+			}
 			if(bricks.size()>1){
 				bricks.get(bricks.size()-1).setX(bricks.get(bricks.size()-2).getX());
 			}
@@ -233,6 +257,7 @@ public class Game {
 	
 	public void setBrick(){
 		//check balance
+		player1Move = !player1Move;
 		if(!isBallanced())
 		{
 			EndRound();
@@ -306,7 +331,7 @@ public class Game {
 	
 	public void EndRound()
 	{
-		if(player1Move){
+		if(!player1Move){
 			player2Score++;
 		}
 		else{
@@ -315,8 +340,8 @@ public class Game {
 		if(player1Score>=scoreToWin || player2Score>=scoreToWin){
 			EndGame();
 		}
-		player1Move = !player1Move;
 		player1MoveFirst = !player1MoveFirst;
+		player1Move = player1MoveFirst;
 		bricks.clear();
 		gameView.invalidate();
 	}
