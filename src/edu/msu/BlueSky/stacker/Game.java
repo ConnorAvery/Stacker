@@ -14,6 +14,7 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
+
 public class Game {
 	
 	/**
@@ -28,8 +29,12 @@ public class Game {
     
     private final static String PLAYER1SCORE = "Game.player1Score";
     private final static String PLAYER2SCORE = "Game.player2Score";
+    
+    private final static String BRICKISSET = "Game.brickIsSet";
 	
-	private final static int scoreToWin = 2;
+	private final static int scoreToWin = 5;
+	
+	private float xTranslate;
 	
 	
 	/**
@@ -56,6 +61,12 @@ public class Game {
      * we are not dragging, the variable is null.
      */
     private Brick dragging = null;
+    
+    //index of 1st brick that fell
+    private int brickFail;
+    
+    //side of screen brick fails on
+    private boolean failSide;
     
     /**
      * Most recent relative X touch when dragging
@@ -94,11 +105,15 @@ public class Game {
 	private double massPosition;
 	
 	private Bitmap logo;
-
+	
+	private long fallTime = 0;
+	
 	public Game(Context c, GameView view){
 		context = c;
 		gameView = view;
 		logo = BitmapFactory.decodeResource(context.getResources(), R.drawable.stacker_logo);
+		brickFail = -1;
+		failSide = false;
 	}
 	
 	public void draw(Canvas canvas){
@@ -114,8 +129,8 @@ public class Game {
 		scaleFactor = (float)screenWidth/minDim;
 		
 		Paint paint = new Paint();    
-		paint.setAlpha(60);     
-		
+		paint.setAlpha(60);
+
 		canvas.save();
 		canvas.translate(screenWidth/2, screenHeight/2);
 		//draw text saying whose turn it is
@@ -123,9 +138,48 @@ public class Game {
 		canvas.translate(-logo.getWidth() / 2, -logo.getHeight() / 2);
 		canvas.drawBitmap(logo, 0, 0, paint);
 		canvas.restore();
+
 		
-		for(Brick brick : bricks){
-			brick.draw(canvas, bricks.indexOf(brick), scaleFactor, yOffset);
+		for(Brick brick : bricks){	
+			if (bricks.indexOf(brick)==brickFail){
+				
+			//	xRotate = (((bricks.get(brickFail).getX()*screenWidth)-(bricks.get(brickFail-1).getX()*screenWidth)))/4;
+			//	yRotate = ((bricks.get(brickFail).getY()) - (bricks.get(brickFail-1).getY()))/4;
+				float halfBrickWidth = bricks.get(brickFail-1).getBrickWidth()/2;
+				float brickHeight = bricks.get(brickFail-1).getBrickHeight();
+				float failGetX = (bricks.get(brickFail).getX()*screenWidth);
+				float failGetY = (bricks.get(brickFail).getY());
+				float brickUnderFailX = (bricks.get(brickFail-1).getX()*screenWidth);
+				int rotation = (int)((float)(90*(System.currentTimeMillis()-fallTime))/2000);
+				Log.i("rotation", ""+rotation);
+				if(failSide && fallTime != 0){
+					xTranslate = (failGetX - brickUnderFailX)*-1;
+					xTranslate += (halfBrickWidth + brickHeight)*scaleFactor;
+					canvas.translate(xTranslate,0);
+					canvas.translate(failGetX, failGetY-yOffset);
+					canvas.rotate(rotation);
+					canvas.translate(-failGetX, -failGetY+yOffset);
+					gameView.invalidate();
+				}
+				else if(fallTime != 0){
+					xTranslate = (brickUnderFailX - failGetX);
+					xTranslate -= (halfBrickWidth + brickHeight)*scaleFactor;
+					canvas.translate(xTranslate,0);
+					canvas.translate(failGetX, failGetY-yOffset);
+					canvas.rotate(-rotation);
+					canvas.translate(-failGetX, -failGetY+yOffset);
+					gameView.invalidate();
+				}
+			    //long currentTime = System.currentTimeMillis();
+				
+				
+				}				
+					
+					brick.draw(canvas, bricks.indexOf(brick), scaleFactor, yOffset);
+				//	canvas.translate(-xRotate, -yRotate);
+			}
+		if(System.currentTimeMillis()-fallTime > 2000 && fallTime != 0){
+			EndRound();
 		}
 	}
 	
@@ -206,6 +260,7 @@ public class Game {
 		bundle.putFloatArray(XLOCATIONS, xLocations);
 		bundle.putIntArray(WEIGHTS, weights);
 		bundle.putBoolean(PLAYER1MOVEFIRST, player1MoveFirst);
+		bundle.putBoolean(BRICKISSET, brickIsSet);
 		bundle.putBoolean(PLAYER1MOVE, player1Move);
 		bundle.putInt(PLAYER1SCORE, player1Score);
 		bundle.putInt(PLAYER2SCORE, player2Score);
@@ -228,6 +283,7 @@ public class Game {
 		player2Score = bundle.getInt(PLAYER2SCORE);
 		player1Move = bundle.getBoolean(PLAYER1MOVE);
 		player1MoveFirst = bundle.getBoolean(PLAYER1MOVEFIRST);
+		brickIsSet = bundle.getBoolean(BRICKISSET);
 		
 	}
 	
@@ -277,77 +333,78 @@ public class Game {
 		player1Move = !player1Move;
 		if(!isBallanced())
 		{
-			EndRound();
+		//	EndRound();
+			fallTime = System.currentTimeMillis();
 		}
 		brickIsSet = true;
-	}
-	
-	public int getBottomUpTotalMass(int size){
-		for(int ii=1;ii<=size;ii++)
-		{
-			Tmass += bricks.get(ii).getWeight();
-		}
-		return Tmass;
+		gameView.invalidate();
 	}
 
-	public int getTopDownTotalMass(int size){
+	public int getTotalMass(int size){
 		for(int ii=size;ii<bricks.size();ii++)
 		{
 			Tmass += bricks.get(ii).getWeight();
 		}
 		return Tmass;
 	}
-
+	
 	public boolean isBallanced(){
 		if(bricks.size()<=1)
 		{
 			return true;
 		}
 		variance = (bricks.get(0).getBrickWidth()*scaleFactor)/2;
+		maxX = (bricks.get(0).getX()*screenWidth) + variance;
+		minX = (bricks.get(0).getX()*screenWidth) - variance;
 		Log.i("maxX", Float.toString(maxX));
 		Log.i("minX", Float.toString(minX));
 
 		for(int ii=bricks.size()-1;ii>0;ii--)
 		{
 			int xx = ii;
-			Tmass = getTopDownTotalMass(ii);
+			Tmass = getTotalMass(ii);
 			Log.i("MAssMassMass", Integer.toString(Tmass));
 			maxX = (bricks.get(ii-1).getX()*screenWidth) + variance;
 			minX = (bricks.get(ii-1).getX()*screenWidth) - variance;
-
+			
 			while(xx<bricks.size())
 			{
 				float tempWeight = bricks.get(xx).getWeight();
 				float tempXpos = bricks.get(xx).getX()*screenWidth;
-
+				
 				total += (tempWeight * tempXpos);
 				xx++;
 			}
 			massPosition = (1.0/Tmass)*total;
-			Log.i("total", Float.toString(total));
-			Log.i("total", Float.toString(Tmass));
-			Log.i("total", Double.toString(1.0/Tmass));
+		//	Log.i("total", Float.toString(total));
+		//	Log.i("total", Float.toString(Tmass));
+		//	Log.i("total", Double.toString(1.0/Tmass));
 			Log.i("xxxxxxxxxxxx", Double.toString(massPosition));
-
+			
 			if (massPosition > maxX || massPosition < minX)
 			{
-				Log.i("FAilED", "Failfailfailfail");
+				Log.i("FAilED", "Fail on brick #"+(ii+1));
+				brickFail = ii;
+				
+				if(massPosition > maxX)
+				{
+					failSide = true;
+				}
+				else{
+					failSide = false;
+				}
 				massPosition = 0;
 				return false;
-			}
-
-
+			}	
 			Tmass = 0;
-			total = 0;
-
+			total = 0;		
 		}
-
+		
 		return true;
 
 	}
 	
-	public void EndRound()
-	{
+	public void EndRound(){
 		if(!player1Move){
 			player2Score++;
 		}
@@ -359,6 +416,7 @@ public class Game {
 		}
 		player1MoveFirst = !player1MoveFirst;
 		player1Move = player1MoveFirst;
+		fallTime = 0;
 		bricks.clear();
 		gameView.invalidate();
 	}

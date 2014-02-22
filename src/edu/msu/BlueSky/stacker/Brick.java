@@ -48,9 +48,18 @@ public class Brick {
 	public float getX() {
 		return xPosition;
 	}
-
+	
 	public void setX(float x) {
 		this.xPosition = x;
+	}
+	
+	
+	public float getY() {
+		return yPosition;
+	}
+	
+	public float getBrickHeight(){
+		return brick.getHeight();
 	}
 
 	public int getWeight() {
